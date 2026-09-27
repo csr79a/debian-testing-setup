@@ -6,8 +6,7 @@
 set -euo pipefail
 
 if [ "$EUID" -ne 0 ]; then
-    echo "[ERROR] Ejecuta con sudo: sudo ./corregir-repos-testing.sh"
-    exit 1
+    exec sudo -- "$0" "$@"
 fi
 
 source /etc/os-release
