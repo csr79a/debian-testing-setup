@@ -385,9 +385,9 @@ fi
 #
 # Se instalan agrupados en bloques temáticos, cada uno con su propio
 # "apt install", en vez de un único comando con los ~25 paquetes juntos.
-# Con "set -e" activo, un solo paquete roto/en tránsito (algo frecuente
-# en Sid durante transiciones de librerías) haría abortar TODO el
-# script de golpe. Al instalar por grupos con su propia comprobación de
+# Con "set -e" activo, un solo paquete roto o en transición en Testing
+# podría abortar TODO el script de golpe. Al instalar por grupos con su
+# propia comprobación de
 # resultado, un fallo puntual solo omite ESE grupo (se avisa cuál y con qué
 # paquetes) y el resto de la instalación sigue igual.
 
@@ -400,7 +400,7 @@ fi
 
 # Cada entrada combina "nombre|paquetes" para que nombre y paquetes no
 # puedan quedar desincronizados al añadir o modificar un grupo.
-GROUPS=(
+PACKAGE_GROUPS=(
   "Control de versiones / descargas|git git-lfs curl wget"
   "Compresión|${ARCHIVE_PACKAGES[*]}"
   "Sistema / diagnóstico|btop fastfetch tree jq ripgrep fd-find pciutils usbutils lshw dmidecode inxi hwinfo lm-sensors acpi"
@@ -414,11 +414,11 @@ GROUPS=(
 )
 
 if [[ -n "$MICROCODE_PKG" ]]; then
-  GROUPS+=("Microcode de CPU|$MICROCODE_PKG")
+  PACKAGE_GROUPS+=("Microcode de CPU|$MICROCODE_PKG")
 fi
 
 ALL_PACKAGES=()
-for group in "${GROUPS[@]}"; do
+for group in "${PACKAGE_GROUPS[@]}"; do
   group_pkgs_str="${group#*|}"
   # shellcheck disable=SC2206
   group_pkgs=($group_pkgs_str)
@@ -426,13 +426,13 @@ for group in "${GROUPS[@]}"; do
 done
 
 echo
-echo "Se van a instalar los siguientes paquetes (agrupados en ${#GROUPS[@]} bloques):"
+echo "Se van a instalar los siguientes paquetes (agrupados en ${#PACKAGE_GROUPS[@]} bloques):"
 printf '  - %s\n' "${ALL_PACKAGES[@]}"
 echo
-confirm "Se van a instalar ${#ALL_PACKAGES[@]} paquetes (desarrollo, multimedia, sistema, utilidades de disco, OCR), en ${#GROUPS[@]} bloques independientes. Si alguno falla (por una transición o dependencia temporal en Testing), se avisa y se continúa con el resto en vez de abortar toda la instalación.\n\n¿Continuar con la instalación?" || { warn "Instalación cancelada por el usuario."; exit 0; }
+confirm "Se van a instalar ${#ALL_PACKAGES[@]} paquetes (desarrollo, multimedia, sistema, utilidades de disco, OCR), en ${#PACKAGE_GROUPS[@]} bloques independientes. Si alguno falla (por una transición o dependencia temporal en Testing), se avisa y se continúa con el resto en vez de abortar toda la instalación.\n\n¿Continuar con la instalación?" || { warn "Instalación cancelada por el usuario."; exit 0; }
 
-FAILED_GROUPS=()
-for group in "${GROUPS[@]}"; do
+FAILED_PACKAGE_GROUPS=()
+for group in "${PACKAGE_GROUPS[@]}"; do
   group_name="${group%%|*}"
   group_pkgs_str="${group#*|}"
   # shellcheck disable=SC2206
@@ -443,12 +443,12 @@ for group in "${GROUPS[@]}"; do
   else
     warn "${group_name}: FALLÓ la instalación de este grupo (${group_pkgs[*]})."
     warn "Se continúa con el resto del script; puedes reintentar este grupo a mano luego con: sudo apt install ${group_pkgs[*]}"
-    FAILED_GROUPS+=("$group_name")
+    FAILED_PACKAGE_GROUPS+=("$group_name")
   fi
 done
 
-if [[ ${#FAILED_GROUPS[@]} -gt 0 ]]; then
-  warn "Grupos que fallaron y se omitieron: ${FAILED_GROUPS[*]}"
+if [[ ${#FAILED_PACKAGE_GROUPS[@]} -gt 0 ]]; then
+  warn "Grupos que fallaron y se omitieron: ${FAILED_PACKAGE_GROUPS[*]}"
   warn "El resto de los pasos continúa. Los que necesitan un paquete de un grupo fallido (wget, flatpak, lspci) lo reintentan o se omiten con aviso."
 fi
 
@@ -918,12 +918,12 @@ if [[ "${FIREFOX_INSTALL_FAILED:-0}" -eq 1 ]]; then
   echo "      sudo apt update && sudo apt install firefox"
 fi
 
-if [[ ${#FAILED_GROUPS[@]} -gt 0 ]]; then
+if [[ ${#FAILED_PACKAGE_GROUPS[@]} -gt 0 ]]; then
   echo
   echo "  - ATENCIÓN: los siguientes grupos de paquetes fallaron durante la"
   echo "    instalación y se omitieron (revisa el log de arriba y reintenta"
   echo "    a mano con 'sudo apt install <paquetes>'):"
-  printf '      · %s\n' "${FAILED_GROUPS[@]}"
+  printf '      · %s\n' "${FAILED_PACKAGE_GROUPS[@]}"
 fi
 
 echo "Detalles completos de cada paso en MANUAL.md."
