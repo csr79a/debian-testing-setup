@@ -15,9 +15,10 @@ al sistema, darles permiso de ejecución y ejecutarlos con seguridad.
 
 ## 1. Antes de nada: deja `sudo` listo
 
-Los scripts necesitan ejecutar comandos con privilegios de
-administrador (instalar paquetes, escribir en `/etc`, etc.), y lo hacen
-a través de `sudo`, nunca ejecutándose directamente como root. Si tu
+Los scripts de configuración necesitan ejecutar comandos con privilegios de
+administrador (instalar paquetes, escribir en `/etc`, etc.), y normalmente lo hacen
+a través de `sudo`. El script `corregir-repos-testing.sh` es una excepción:
+se inicia como usuario normal y se eleva mediante `sudo` cuando necesita modificar APT. Si tu
 usuario ya puede usar `sudo` (lo normal si instalaste Debian marcando
 la opción de crear un usuario administrador), puedes saltar a la
 [sección 2](#2-descargarcopiar-los-scripts-y-darles-permiso-de-ejecución).
