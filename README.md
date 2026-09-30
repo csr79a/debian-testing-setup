@@ -26,6 +26,7 @@ Versiones documentadas: `setup-debian-testing.sh` 1.0.0 y
 debian-testing-setup/
 ├── MANUAL.md              ← empieza por aquí si no sabes bash
 ├── README.md               (este archivo)
+├── corregir-repos-testing.sh ← normaliza los repositorios Debian Testing
 ├── setup/
 │   ├── setup-debian-testing.sh
 │   └── README.md            ← detalle de qué instala
@@ -39,11 +40,14 @@ debian-testing-setup/
 | Quieres...                                              | Lee...              |
 | --------------------------------------------------------- | ---------------------- |
 | Una visión general del proyecto                         | Este README (aquí)   |
+| Corregir/normalizar los repositorios de Debian Testing  | `corregir-repos-testing.sh` |
 | Instrucciones paso a paso, sin dar nada por sabido       | `MANUAL.md`           |
 | El detalle técnico de qué instala `setup-debian-testing.sh` | `setup/README.md`     |
 | El detalle técnico de qué elimina `cleanup-debian-testing.sh` | `cleanup/README.md`   |
 
 ## Uso rápido
+
+Si acabas de instalar Debian Testing y quieres dejar los repositorios en el formato esperado por este proyecto, ejecuta primero `corregir-repos-testing.sh`. Después ejecuta `setup/setup-debian-testing.sh` para la configuración del sistema. El script de corrección no convierte automáticamente una instalación que apunte a otra suite: si detecta una suite distinta de `testing`, se detiene.
 
 ```bash
 chmod +x setup/setup-debian-testing.sh cleanup/cleanup-debian-testing.sh
