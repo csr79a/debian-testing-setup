@@ -8,8 +8,8 @@
 > `setup/README.md` o `cleanup/README.md`.
 
 Este manual te lleva de la mano por todo el proceso: dejar `sudo`
-listo, copiar los scripts al sistema, darles permiso de ejecución y
-ejecutarlos con seguridad.
+listo, normalizar los repositorios de Debian Testing, copiar los scripts
+al sistema, darles permiso de ejecución y ejecutarlos con seguridad.
 
 ---
 
@@ -72,7 +72,20 @@ Deberías ver algo como:
 -rwxr-xr-x ...   ← las "x" indican que ya es ejecutable
 ```
 
-## 3. Ejecutar los scripts
+## 3. Corregir los repositorios antes de configurar Debian Testing
+
+Si tu instalación de Debian Testing necesita normalizar sus repositorios, ejecuta primero el script raíz `corregir-repos-testing.sh` como usuario normal:
+
+```bash
+chmod +x corregir-repos-testing.sh
+./corregir-repos-testing.sh
+```
+
+Este script se eleva mediante `sudo` cuando necesita modificar `/etc/apt`. Comprueba que el sistema sea Debian y que la suite detectada sea `testing`; **no convierte automáticamente stable, unstable u otra suite a testing**. Si ya está correctamente configurado, no rehace la configuración y ejecuta `apt update`.
+
+Después de este paso, continúa con la configuración del sistema.
+
+## 4. Ejecutar los scripts
 
 ```bash
 # Configuración inicial del sistema (asume que ya apuntas a testing)
@@ -117,7 +130,7 @@ Ambos scripts tienen su propia ayuda integrada:
 ./cleanup-debian-testing.sh -h
 ```
 
-## 4. Sobre el zram automático
+## 5. Sobre el zram automático
 
 `zram` es una forma de "swap" (memoria de intercambio) que vive
 comprimida dentro de la propia RAM, en vez de en el disco. Es mucho más
@@ -133,7 +146,7 @@ del kernel que decide cuánto "le gusta" usar el swap) a un valor más
 alto de lo normal, porque con zram conviene que el sistema lo use antes
 que con swap en disco.
 
-## 5. Sobre la migración de Firefox y AutoFirma
+## 6. Sobre la migración de Firefox y AutoFirma
 
 Debian, también en Testing, solo trae Firefox ESR (la versión de
 soporte extendido) en sus repositorios oficiales. Si quieres la versión
@@ -155,18 +168,15 @@ caso, vuelve a instalar o ejecuta de nuevo el procedimiento de AutoFirma
 que utilizaste originalmente para que vuelva a inyectar su certificado
 en el nuevo perfil.
 
-## 6. Orden recomendado
+## 7. Orden recomendado
 
-1. `setup-debian-testing.sh` (sin `-y` la primera vez), para dejar el
-   sistema base configurado.
-2. Revisa que todo haya ido bien (lee el resumen final que imprime el
-   propio script).
-3. Si quieres, `cleanup-debian-testing.sh`, para quitar las apps de KDE
-   que no uses.
-4. Reinicia si el script te lo indica (por ejemplo, tras cambios de
-   microcode/firmware).
+1. `corregir-repos-testing.sh`, si necesitas normalizar los repositorios Debian Testing.
+2. `setup/setup-debian-testing.sh` (sin `-y` la primera vez), para dejar el sistema base configurado.
+3. Revisa que todo haya ido bien (lee el resumen final que imprime el propio script).
+4. Si quieres, `cleanup/cleanup-debian-testing.sh`, para quitar las apps de KDE que no uses.
+5. Reinicia si el script te lo indica (por ejemplo, tras cambios de microcode/firmware).
 
-## 7. Si algo sale mal
+## 8. Si algo sale mal
 
 - **El script se detiene diciendo que tus repositorios no apuntan a
   `testing`:** es la comprobación de seguridad funcionando como debe.
