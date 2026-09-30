@@ -386,9 +386,8 @@ fi
 # "apt install", en vez de un único comando con los ~25 paquetes juntos.
 # Con "set -e" activo, un solo paquete roto o en transición en Testing
 # podría abortar TODO el script de golpe. Al instalar por grupos con su
-# propia comprobación de
-# resultado, un fallo puntual solo omite ESE grupo (se avisa cuál y con qué
-# paquetes) y el resto de la instalación sigue igual.
+# propia comprobación de resultado, un fallo puntual solo omite ESE grupo
+# (se avisa cuál y con qué paquetes) y el resto de la instalación sigue igual.
 
 if apt-cache show 7zip >/dev/null 2>&1; then
   ARCHIVE_PACKAGES=(unzip zip 7zip)
@@ -856,6 +855,7 @@ Notas generales:
     Tesseract (inglés, español y detección de orientación). Comprueba
     los idiomas disponibles con: tesseract --list-langs
 
+EOF
 
 if [[ "${ZRAM_CONFIGURED:-0}" -eq 1 ]]; then
   cat <<EOF
