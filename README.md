@@ -84,8 +84,9 @@ completo en [`cleanup/README.md`](cleanup/README.md).
 
 Testing es la rama de desarrollo de la **próxima versión estable** de
 Debian. Se comporta de forma razonablemente estable la mayor parte del
-ciclo (los paquetes solo migran desde Unstable tras 2-10 días sin bugs
-críticos), pero:
+ciclo (los paquetes suelen migrar desde Unstable tras cumplir los
+criterios de migración; el retraso estándar es de 2, 5 o 10 días según la
+urgencia, aunque las reglas cambian durante el freeze), pero:
 
 - **No tiene cobertura de seguridad garantizada en plazos cortos.** El
   equipo de seguridad de Debian no gestiona testing de forma puntual;
