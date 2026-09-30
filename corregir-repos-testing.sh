@@ -36,6 +36,135 @@ if [ -f "$SOURCE_FILE" ] \
     ya_configurado=true
 fi
 
+# Antes de modificar nada, comprobamos que las fuentes de Debian que
+# ya existen no apunten a otra suite. Este script normaliza a Testing,
+# pero NO convierte automáticamente una instalación que use stable,
+# unstable/sid, un codename concreto u otra suite.
+#
+# Se revisa debian.sources, el sources.list clásico y otros .sources/.list
+# que parezcan ser repositorios de Debian. Las fuentes de terceros no se
+# bloquean por usar nombres de suite propios.
+
+sources_file_bad_suites() {
+    awk '/^Suites:/ {
+        for (i = 2; i <= NF; i++)
+            if ($i != "testing") print $i
+    }' "$SOURCE_FILE" | sort -u
+}
+
+legacy_bad_lines() {
+    awk '
+        /^[[:space:]]*deb(-src)?[[:space:]]/ {
+            line = $0
+            sub(/^[[:space:]]*deb(-src)?[[:space:]]+/, "", line)
+            if (line ~ /^\[/)
+                sub(/^\[[^]]*\][[:space:]]*/, "", line)
+            split(line, f, /[[:space:]]+/)
+            if (f[1] ~ /^cdrom:/)
+                next
+            if (tolower(f[1]) !~ /debian/)
+                next
+            if (f[2] != "testing")
+                print $0
+        }' /etc/apt/sources.list
+}
+
+other_sources_bad_entries() {
+    local f
+    for f in /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+        [[ -f "$f" && "$f" != "$SOURCE_FILE" ]] || continue
+
+        case "$f" in
+            *.sources)
+                awk -v file="$f" '
+                    function flush(   j) {
+                        if (n > 0 && enabled && isdeb)
+                            for (j = 1; j <= n; j++)
+                                if (suites[j] != "testing")
+                                    print file ": Suites: " suites[j]
+                        n = 0
+                        enabled = 1
+                        isdeb = 0
+                        delete suites
+                    }
+                    BEGIN { enabled = 1 }
+                    /^[[:space:]]*$/ { flush(); next }
+                    /^#/ { next }
+                    /^URIs:/ {
+                        if (tolower($0) ~ /[\/.]debian\.org(\/|[[:space:]]|$)/)
+                            isdeb = 1
+                    }
+                    /^Signed-By:/ {
+                        if ($0 ~ /debian-archive-keyring/)
+                            isdeb = 1
+                    }
+                    /^Enabled:/ {
+                        if (tolower($2) == "no" || tolower($2) == "false")
+                            enabled = 0
+                    }
+                    /^Suites:/ {
+                        for (k = 2; k <= NF; k++)
+                            suites[++n] = $k
+                    }
+                    END { flush() }
+                ' "$f"
+                ;;
+            *.list)
+                awk '
+                    /^[[:space:]]*deb(-src)?[[:space:]]/ {
+                        line = $0
+                        sub(/^[[:space:]]*deb(-src)?[[:space:]]+/, "", line)
+                        opts = ""
+                        if (line ~ /^\[/) {
+                            opts = line
+                            sub(/\].*$/, "]", opts)
+                            sub(/^\[[^]]*\][[:space:]]*/, "", line)
+                        }
+                        split(line, f2, /[[:space:]]+/)
+                        if (f2[1] ~ /^cdrom:/)
+                            next
+                        isdeb = (tolower(f2[1]) ~ /[\/.]debian\.org(\/|$)/) || (opts ~ /debian-archive-keyring/)
+                        if (isdeb && f2[2] != "testing")
+                            print file ": " $0
+                    }
+                ' "$f"
+                ;;
+        esac
+    done
+}
+
+if [[ -f "$SOURCE_FILE" ]]; then
+    if ! grep -q '^Suites:' "$SOURCE_FILE"; then
+        echo "[ERROR] No se encontró la línea 'Suites:' en $SOURCE_FILE; no se puede verificar la suite con seguridad." >&2
+        exit 1
+    fi
+
+    otras_suites="$(sources_file_bad_suites)"
+    if [[ -n "$otras_suites" ]]; then
+        echo "[ERROR] $SOURCE_FILE apunta a suites distintas de testing: $otras_suites" >&2
+        echo "Este script no convierte otras suites a testing. Corrige el archivo a mano y vuelve a ejecutarlo." >&2
+        exit 1
+    fi
+fi
+
+if [[ -f /etc/apt/sources.list ]]; then
+    legacy_bad="$(legacy_bad_lines)"
+    if [[ -n "$legacy_bad" ]]; then
+        echo "[ERROR] /etc/apt/sources.list contiene repositorios Debian que no apuntan a testing:" >&2
+        sed 's/^/    /' <<<"$legacy_bad" >&2
+        echo "Este script no convierte otras suites a testing. Corrige esas entradas a mano y vuelve a ejecutarlo." >&2
+        exit 1
+    fi
+fi
+
+other_bad="$(other_sources_bad_entries)"
+if [[ -n "$other_bad" ]]; then
+    echo "[ERROR] Hay otros repositorios Debian en /etc/apt/sources.list.d que no apuntan a testing:" >&2
+    sed 's/^/    /' <<<"$other_bad" >&2
+    echo "Este script no convierte otras suites a testing. Corrige o desactiva esas entradas a mano y vuelve a ejecutarlo." >&2
+    exit 1
+fi
+
 # Solo se crea una copia de seguridad si realmente vamos a modificar
 # la configuración de APT. Una ejecución que ya está correctamente
 # configurada no genera backups innecesarios.
