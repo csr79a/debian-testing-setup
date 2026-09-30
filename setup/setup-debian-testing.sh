@@ -97,6 +97,10 @@ confirm() {
 # silencia TODOS los prompts de debconf durante la instalación, no solo
 # los de firmware, así que solo se activa en modo no interactivo
 # explícito.
+if [[ "$ASSUME_YES" -ne 1 && ! -t 0 ]]; then
+  error "Este script usa whiptail y necesita una terminal interactiva (TTY). Ejecuta la sesión SSH con 'ssh -t' o utiliza './setup-debian-testing.sh -y' si realmente quieres modo no interactivo."
+fi
+
 if [[ "$ASSUME_YES" -eq 1 ]]; then
   export DEBIAN_FRONTEND=noninteractive
   warn "MODO -y ACTIVO: se aceptarán automáticamente TODAS las preguntas, incluidas operaciones destructivas:"
@@ -399,57 +403,43 @@ fi
 
 # Dos arrays paralelos (los índices deben corresponderse 1 a 1): nombre
 # descriptivo del grupo y string con sus paquetes separados por espacio.
-GROUP_NAMES=(
-  "Control de versiones / descargas"
-  "Compresión"
-  "Sistema / diagnóstico"
-  "Utilidades de disco"
-  "Desarrollo / compilación"
-  "Multimedia"
-  "Firmware"
-  "Gestión de paquetes (GUI)"
-  "Flatpak + integración KDE"
-  "OCR (extracción de texto de capturas)"
-)
-
-GROUP_PACKAGES=(
-  "git git-lfs curl wget"
-  "${ARCHIVE_PACKAGES[*]}"
-  "btop fastfetch tree jq ripgrep fd-find pciutils usbutils lshw dmidecode inxi hwinfo lm-sensors acpi"
-  "gnome-disk-utility"
-  "build-essential gcc g++ make cmake ninja-build pkg-config autoconf automake libtool openssh-client"
-  "ffmpeg gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly pavucontrol"
-  "firmware-linux"
-  "synaptic"
-  "flatpak plasma-discover-backend-flatpak"
-  # OCR para extraer texto de las capturas de pantalla (Spectacle):
-  # motor Tesseract con datos de inglés, español y detección de orientación.
-  "tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa tesseract-ocr-osd"
+GROUPS=(
+  "Control de versiones / descargas|git git-lfs curl wget"
+  "Compresión|${ARCHIVE_PACKAGES[*]}"
+  "Sistema / diagnóstico|btop fastfetch tree jq ripgrep fd-find pciutils usbutils lshw dmidecode inxi hwinfo lm-sensors acpi"
+  "Utilidades de disco|gnome-disk-utility"
+  "Desarrollo / compilación|build-essential gcc g++ make cmake ninja-build pkg-config autoconf automake libtool openssh-client"
+  "Multimedia|ffmpeg gstreamer1.0-libav gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly pavucontrol"
+  "Firmware|firmware-linux"
+  "Gestión de paquetes (GUI)|synaptic"
+  "Flatpak + integración KDE|flatpak plasma-discover-backend-flatpak"
+  "OCR (extracción de texto de capturas de pantalla)|tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa tesseract-ocr-osd"
 )
 
 if [[ -n "$MICROCODE_PKG" ]]; then
-  GROUP_NAMES+=("Microcode de CPU")
-  GROUP_PACKAGES+=("$MICROCODE_PKG")
+  GROUPS+=("Microcode de CPU|$MICROCODE_PKG")
 fi
 
-# Solo para mostrar el listado completo al usuario antes de confirmar.
 ALL_PACKAGES=()
-for pkgs in "${GROUP_PACKAGES[@]}"; do
+for group in "${GROUPS[@]}"; do
+  group_pkgs_str="${group#*|}"
   # shellcheck disable=SC2206
-  ALL_PACKAGES+=($pkgs)
+  group_pkgs=($group_pkgs_str)
+  ALL_PACKAGES+=("${group_pkgs[@]}")
 done
 
 echo
-echo "Se van a instalar los siguientes paquetes (agrupados en ${#GROUP_NAMES[@]} bloques):"
+echo "Se van a instalar los siguientes paquetes (agrupados en ${#GROUPS[@]} bloques):"
 printf '  - %s\n' "${ALL_PACKAGES[@]}"
 echo
-confirm "Se van a instalar ${#ALL_PACKAGES[@]} paquetes (desarrollo, multimedia, sistema, utilidades de disco, OCR), en ${#GROUP_NAMES[@]} bloques independientes. Si alguno falla (típico en Sid durante transiciones de paquetes), se avisa y se continúa con el resto en vez de abortar toda la instalación.\n\n¿Continuar con la instalación?" || { warn "Instalación cancelada por el usuario."; exit 0; }
+confirm "Se van a instalar ${#ALL_PACKAGES[@]} paquetes (desarrollo, multimedia, sistema, utilidades de disco, OCR), en ${#GROUPS[@]} bloques independientes. Si alguno falla (por una transición o dependencia temporal en Testing), se avisa y se continúa con el resto en vez de abortar toda la instalación.\n\n¿Continuar con la instalación?" || { warn "Instalación cancelada por el usuario."; exit 0; }
 
 FAILED_GROUPS=()
-for i in "${!GROUP_NAMES[@]}"; do
-  group_name="${GROUP_NAMES[$i]}"
+for group in "${GROUPS[@]}"; do
+  group_name="${group%%|*}"
+  group_pkgs_str="${group#*|}"
   # shellcheck disable=SC2206
-  group_pkgs=(${GROUP_PACKAGES[$i]})
+  group_pkgs=($group_pkgs_str)
   log "Instalando (${group_name}): ${group_pkgs[*]}"
   if sudo apt install -y "${group_pkgs[@]}"; then
     ok "${group_name}: instalado correctamente."
@@ -553,6 +543,7 @@ fi
 # 6. ZRAM (swap comprimido en RAM, tamaño automático según RAM total)
 # ----------------------------------------------------------------------
 
+ZRAM_CONFIGURED=0
 TOTAL_RAM_KB="$(grep -m1 '^MemTotal:' /proc/meminfo | awk '{print $2}')"
 TOTAL_RAM_MB=$(( TOTAL_RAM_KB / 1024 ))
 ZRAM_SIZE_MB=$(( TOTAL_RAM_MB / 2 ))
@@ -598,6 +589,7 @@ else
         fi
 
         ok "Configurado ${SIZE_VAR}=${ZRAM_SIZE_MB} (${ZRAM_SIZE_MB} MiB) en $ZRAM_CONF"
+        ZRAM_CONFIGURED=1
         sudo systemctl restart zramswap.service 2>/dev/null || sudo service zramswap restart \
           || warn "No se pudo reiniciar zramswap; la nueva configuración se aplicará tras reiniciar."
 
@@ -651,12 +643,15 @@ fi
 MOZILLA_PROFILES_DIR="$HOME/.mozilla/firefox"
 ESR_PROFILES_REMOVED=0
 ESR_PURGE_FAILED=0
+MOZILLA_STEP_ATTEMPTED=0
+MOZILLA_KEY_OK=0
 FIREFOX_INSTALL_FAILED=0
 
 if [[ "$WGET_OK" -ne 1 ]]; then
   warn "Falta 'wget' (necesario para descargar la clave de Mozilla) y no se pudo instalar. Se omite la sustitución de Firefox."
 elif confirm "¿Sustituir Firefox ESR de Debian por Firefox oficial del repositorio de Mozilla?\n\nAVISO: si Firefox ESR está instalado, se eliminarán también su configuración (/etc/firefox-esr) y TODOS sus perfiles y datos en ~/.mozilla/firefox (marcadores, contraseñas, historial, extensiones). Es irreversible. Firefox normal empezará con un perfil limpio." 18 76; then
 
+  MOZILLA_STEP_ATTEMPTED=1
   FIREFOX_ESR_PKGS=()
   for pkg in firefox-esr firefox-esr-l10n-es; do
     if dpkg -s "$pkg" >/dev/null 2>&1; then
@@ -861,26 +856,19 @@ Notas generales:
     Tesseract (inglés, español y detección de orientación). Comprueba
     los idiomas disponibles con: tesseract --list-langs
 
-  - Si configuraste zram, comprueba su estado con:
+
+if [[ "${ZRAM_CONFIGURED:-0}" -eq 1 ]]; then
+  cat <<EOF
+
+  - Zram quedó configurado. Comprueba su estado con:
       zramswap status
       swapon --show
     El tamaño se calculó automáticamente a partir de tu RAM total
     (${TOTAL_RAM_MB:-desconocida} MiB detectados -> ${ZRAM_SIZE_MB:-N/A} MiB de zram).
     Si además ajustaste vm.swappiness, comprueba el valor activo con:
       sudo sysctl vm.swappiness
-
-  - Si instalaste Firefox desde el repositorio de Mozilla, comprueba
-    la versión con: firefox --version (debería ser una versión release,
-    no "esr" en el nombre).
-
-  - Si instalaste las fuentes de Windows, ya están disponibles para
-    cualquier aplicación (LibreOffice, navegadores, etc.).
-
-  - Si el script detectó y comentó contenido en /etc/apt/sources.list
-    (típico de una instalación desde la ISO oficial), tienes la copia
-    original en /etc/apt/sources.list.bak.<fecha> por si quieres
-    revisarla o revertir el cambio.
 EOF
+fi
 
 if [[ "${ESR_PROFILES_REMOVED:-0}" -eq 1 ]]; then
   cat <<'EOF'
@@ -899,6 +887,16 @@ if lspci 2>/dev/null | grep -qi nvidia; then
     driver: gestiónalo aparte (repo/keyring, blacklist de nouveau,
     GRUB, initramfs) según tu hardware.
 EOF
+fi
+
+if [[ "${WGET_OK:-0}" -eq 0 ]]; then
+  echo
+  echo "  - ATENCIÓN: 'wget' no está disponible. La sustitución opcional por Firefox de Mozilla no pudo realizarse."
+fi
+
+if [[ "${MOZILLA_STEP_ATTEMPTED:-0}" -eq 1 && "${MOZILLA_KEY_OK:-0}" -ne 1 ]]; then
+  echo
+  echo "  - ATENCIÓN: no se pudo verificar la huella de la clave de Mozilla. No se instaló Firefox de Mozilla ni se tocó Firefox ESR."
 fi
 
 if [[ "${FULL_UPGRADE_FAILED:-0}" -eq 1 ]]; then
