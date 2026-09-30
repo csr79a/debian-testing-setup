@@ -2,10 +2,8 @@
 #
 # corregir-repos-testing.sh
 # Normaliza los repositorios de Debian Testing al formato deb822 (.sources),
-# incluyendo las tres suites que existen en el archivo:
-#   - testing         (deb.debian.org)
-#   - testing-updates (deb.debian.org)
-#   - testing-security (security.debian.org)
+# dejando las suites testing (deb.debian.org) y testing-security
+# (security.debian.org).
 #
 set -euo pipefail
 
@@ -27,23 +25,40 @@ if [ -z "$CODENAME" ]; then
     exit 1
 fi
 
+# ¿El sistema es testing? En testing, /etc/debian_version es "<codename>/sid"
+# (p. ej. "forky/sid") y os-release trae PRETTY_NAME="Debian GNU/Linux forky/sid".
+# En stable debian_version es un número (p. ej. "13.3") y en unstable es "sid"
+# (sin barra). Solo si el sistema ES testing se acepta el codename como suite;
+# así, cuando forky pase a stable, dejará de aceptarse automáticamente.
+SISTEMA_TESTING=false
+if [[ -r /etc/os-release ]] && grep -qE '^PRETTY_NAME=.*/sid' /etc/os-release; then
+    SISTEMA_TESTING=true
+elif [[ -r /etc/debian_version ]] && grep -qE '/sid$' /etc/debian_version; then
+    SISTEMA_TESTING=true
+fi
+
 echo "[OK] Debian detectado: $CODENAME"
 
 SOURCE_FILE="/etc/apt/sources.list.d/debian.sources"
 KEYRING="/usr/share/keyrings/debian-archive-keyring.gpg"
 LEGACY="/etc/apt/sources.list"
 
-# Contenido final deseado: las tres suites de testing.
+# Suites ACEPTABLES (se conservan) y DESCARTABLES (se quitan al normalizar,
+# sin detener el script). Cualquier otra suite (stable, sid, un codename
+# distinto del testing...) detiene el script: no se convierte a testing.
+ACEPTABLES='^(testing|testing-security)$'
+DESCARTABLES='^(testing-updates|testing-proposed-updates|testing-backports)$'
+if [[ "$SISTEMA_TESTING" == true ]]; then
+    ACEPTABLES="^(testing|testing-security|${CODENAME}|${CODENAME}-security)$"
+    DESCARTABLES="^(testing-updates|testing-proposed-updates|testing-backports|${CODENAME}-updates|${CODENAME}-proposed-updates|${CODENAME}-backports)$"
+    echo "[OK] Sistema testing detectado; se acepta también el codename '$CODENAME' y '$CODENAME-security'."
+fi
+
+# Contenido final deseado.
 QUIERO_CONFIG="$(cat <<EOF
 Types: deb
 URIs: https://deb.debian.org/debian
 Suites: testing
-Components: main contrib non-free non-free-firmware
-Signed-By: $KEYRING
-
-Types: deb
-URIs: https://deb.debian.org/debian
-Suites: testing-updates
 Components: main contrib non-free non-free-firmware
 Signed-By: $KEYRING
 
@@ -55,27 +70,27 @@ Signed-By: $KEYRING
 EOF
 )"
 
-# Antes de modificar nada, comprobamos que las fuentes de Debian que ya
-# existen no apunten a otra rama. Se acepta la familia de testing (testing,
-# testing-updates, testing-security y derivadas como testing-proposed-updates
-# o testing-backports), pero NO se convierte automáticamente una instalación
-# que use stable, unstable/sid, un codename concreto u otra rama.
-#
-# Se revisan debian.sources, el sources.list clásico y otros .sources/.list
-# que parezcan ser repositorios de Debian. Las fuentes de terceros no se
-# bloquean por usar nombres de suite propios.
-
+# Suites de $SOURCE_FILE que son de otra rama (detienen el script).
 sources_file_bad_suites() {
-    awk '/^Suites:/ {
-        for (i = 2; i <= NF; i++) {
-            s = $i
-            if (s != "testing" && s !~ /^testing-/) print s
-        }
-    }' "$SOURCE_FILE" | sort -u
+    awk -v acc="$ACEPTABLES" -v des="$DESCARTABLES" '
+        /^Suites:/ {
+            for (i = 2; i <= NF; i++)
+                if ($i !~ acc && $i !~ des) print $i
+        }' "$SOURCE_FILE" | sort -u
 }
 
+# Suites descartables de $SOURCE_FILE (se quitan, solo informativo).
+sources_file_dropped_suites() {
+    awk -v acc="$ACEPTABLES" -v des="$DESCARTABLES" '
+        /^Suites:/ {
+            for (i = 2; i <= NF; i++)
+                if ($i ~ des && $i !~ acc) print $i
+        }' "$SOURCE_FILE" | sort -u
+}
+
+# Líneas activas de $LEGACY que apuntan a Debian con una suite de otra rama.
 legacy_bad_lines() {
-    awk '
+    awk -v acc="$ACEPTABLES" -v des="$DESCARTABLES" '
         /^[[:space:]]*deb(-src)?[[:space:]]/ {
             line = $0
             sub(/^[[:space:]]*deb(-src)?[[:space:]]+/, "", line)
@@ -86,11 +101,14 @@ legacy_bad_lines() {
                 next
             if (tolower(f[1]) !~ /debian/)
                 next
-            if (f[2] != "testing" && f[2] !~ /^testing-/)
+            if (f[2] !~ acc && f[2] !~ des)
                 print $0
         }' "$LEGACY"
 }
 
+# Entradas de OTROS ficheros de /etc/apt/sources.list.d que apuntan a Debian
+# con una suite de otra rama. Solo se consideran de Debian las entradas cuyo
+# URI es de debian.org o que usan debian-archive-keyring.
 other_sources_bad_entries() {
     local f
     for f in /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
@@ -98,11 +116,11 @@ other_sources_bad_entries() {
 
         case "$f" in
             *.sources)
-                awk -v file="$f" '
+                awk -v file="$f" -v acc="$ACEPTABLES" -v des="$DESCARTABLES" '
                     function flush(   j) {
                         if (n > 0 && enabled && isdeb)
                             for (j = 1; j <= n; j++)
-                                if (suites[j] != "testing" && suites[j] !~ /^testing-/)
+                                if (suites[j] !~ acc && suites[j] !~ des)
                                     print file ": Suites: " suites[j]
                         n = 0
                         enabled = 1
@@ -132,7 +150,7 @@ other_sources_bad_entries() {
                 ' "$f"
                 ;;
             *.list)
-                awk -v file="$f" '
+                awk -v file="$f" -v acc="$ACEPTABLES" -v des="$DESCARTABLES" '
                     /^[[:space:]]*deb(-src)?[[:space:]]/ {
                         line = $0
                         sub(/^[[:space:]]*deb(-src)?[[:space:]]+/, "", line)
@@ -146,7 +164,7 @@ other_sources_bad_entries() {
                         if (f2[1] ~ /^cdrom:/)
                             next
                         isdeb = (tolower(f2[1]) ~ /[\/.]debian\.org(\/|$)/) || (opts ~ /debian-archive-keyring/)
-                        if (isdeb && f2[2] != "testing" && f2[2] !~ /^testing-/)
+                        if (isdeb && f2[2] !~ acc && f2[2] !~ des)
                             print file ": " $0
                     }
                 ' "$f"
@@ -163,8 +181,8 @@ if [[ -f "$SOURCE_FILE" ]]; then
 
     otras_suites="$(sources_file_bad_suites)"
     if [[ -n "$otras_suites" ]]; then
-        echo "[ERROR] $SOURCE_FILE apunta a suites que no son de testing: $otras_suites" >&2
-        echo "Este script solo normaliza la rama testing (testing, testing-updates, testing-security...)." >&2
+        echo "[ERROR] $SOURCE_FILE apunta a suites de otra rama (no testing): $otras_suites" >&2
+        echo "Este script solo normaliza la rama testing y no convierte stable/sid/codenames a testing." >&2
         echo "Corrige el archivo a mano y vuelve a ejecutarlo." >&2
         exit 1
     fi
@@ -173,7 +191,7 @@ fi
 if [[ -f "$LEGACY" ]]; then
     legacy_bad="$(legacy_bad_lines)"
     if [[ -n "$legacy_bad" ]]; then
-        echo "[ERROR] $LEGACY contiene repositorios Debian que no son de testing:" >&2
+        echo "[ERROR] $LEGACY contiene repositorios Debian de otra rama (no testing):" >&2
         sed 's/^/    /' <<<"$legacy_bad" >&2
         echo "Corrige esas entradas a mano y vuelve a ejecutarlo." >&2
         exit 1
@@ -182,10 +200,16 @@ fi
 
 other_bad="$(other_sources_bad_entries)"
 if [[ -n "$other_bad" ]]; then
-    echo "[ERROR] Hay otros repositorios Debian en /etc/apt/sources.list.d que no son de testing:" >&2
+    echo "[ERROR] Hay otros repositorios Debian en /etc/apt/sources.list.d de otra rama (no testing):" >&2
     sed 's/^/    /' <<<"$other_bad" >&2
     echo "Corrige o desactiva esas entradas a mano y vuelve a ejecutarlo." >&2
     exit 1
+fi
+
+DROPPED="$(sources_file_dropped_suites)"
+if [[ -n "$DROPPED" ]]; then
+    echo "[AVISO] Se quitarán estas suites de testing no deseadas: $(tr '\n' ' ' <<<"$DROPPED")"
+    echo "        La configuración final será: testing + testing-security."
 fi
 
 # ¿Ya está exactamente como queremos? Entonces no hay nada que reescribir.
@@ -217,11 +241,11 @@ if [ -f "$LEGACY" ] && [ -s "$LEGACY" ]; then
 fi
 
 if [ "$ya_configurado" == true ]; then
-    echo "[OK] Repositorios Debian Testing ya configurados (testing + testing-updates + testing-security)."
+    echo "[OK] Repositorios Debian Testing ya configurados (testing + testing-security)."
     echo "[OK] No se modifica nada."
 else
     printf '%s\n' "$QUIERO_CONFIG" > "$SOURCE_FILE"
-    echo "[OK] $SOURCE_FILE reescrito (testing + testing-updates + testing-security)."
+    echo "[OK] $SOURCE_FILE reescrito (testing + testing-security)."
 fi
 
 apt update

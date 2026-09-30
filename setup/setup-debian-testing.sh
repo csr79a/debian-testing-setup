@@ -209,26 +209,46 @@ SOURCES_FILE="$SOURCES_DIR/debian.sources"
 #
 # Se comprueban debian.sources, /etc/apt/sources.list y el resto de
 # ficheros *.sources y *.list de /etc/apt/sources.list.d que apunten a Debian.
-# Se acepta la familia de testing: "testing" y sus derivadas
-# (testing-updates, testing-security, testing-proposed-updates,
-# testing-backports), que sí existen en el archivo de Debian. Se RECHAZA el
-# codename fijo de turno (p. ej. "forky" o "trixie", que deja de significar
-# "testing" en cuanto esa versión se convierte en stable) y cualquier otra
-# suite (unstable, sid, bookworm, stable...) detiene el script ANTES de
-# continuar con apt update/full-upgrade, y también con -y: es una
-# comprobación de seguridad, no una pregunta que se pueda aceptar
-# automáticamente. El script no convierte esas otras suites a Testing.
+#
+# Se ACEPTAN las suites de testing:
+#   - "testing" y "testing-security" siempre;
+#   - el codename del sistema (p. ej. "forky") y "<codename>-security" SOLO
+#     si /etc/os-release confirma que el sistema ES testing. Así, cuando el
+#     codename pase a stable, dejará de aceptarse solo.
+# Se DESCARTAN (sin detener) las suites de testing que no configuramos
+# (testing-updates, testing-proposed-updates, testing-backports y sus
+# equivalentes con el codename).
+# Cualquier otra suite (stable, sid, un codename que no sea el del sistema...)
+# detiene el script ANTES de apt update/full-upgrade, también con -y: es una
+# comprobación de seguridad, no una pregunta. El script no convierte otras
+# ramas a Testing.
 
-# Suites de $SOURCES_FILE que no son de la familia testing (una por línea).
+# ¿El sistema es testing? (para aceptar su codename como suite)
+SISTEMA_TESTING=false
+if [[ -r /etc/os-release ]] && grep -qE '^PRETTY_NAME=.*/sid' /etc/os-release; then
+  SISTEMA_TESTING=true
+elif [[ -r /etc/debian_version ]] && grep -qE '/sid$' /etc/debian_version; then
+  SISTEMA_TESTING=true
+fi
+
+ACEPTABLES='^(testing|testing-security)$'
+DESCARTABLES='^(testing-updates|testing-proposed-updates|testing-backports)$'
+if [[ "$SISTEMA_TESTING" == true && -n "${DETECTED_CODENAME:-}" ]]; then
+  ACEPTABLES="^(testing|testing-security|${DETECTED_CODENAME}|${DETECTED_CODENAME}-security)$"
+  DESCARTABLES="^(testing-updates|testing-proposed-updates|testing-backports|${DETECTED_CODENAME}-updates|${DETECTED_CODENAME}-proposed-updates|${DETECTED_CODENAME}-backports)$"
+fi
+
+# Suites de $SOURCES_FILE que son de otra rama (una por línea).
 sources_file_bad_suites() {
-  awk '/^Suites:/ { for (i = 2; i <= NF; i++) { s = $i; if (s != "testing" && s !~ /^testing-/) print s } }' "$SOURCES_FILE" | sort -u
+  awk -v acc="$ACEPTABLES" -v des="$DESCARTABLES" '
+    /^Suites:/ { for (i = 2; i <= NF; i++) if ($i !~ acc && $i !~ des) print $i }' "$SOURCES_FILE" | sort -u
 }
 
 # Líneas activas de $LEGACY_SOURCES que apuntan a un repositorio de Debian
-# con una suite distinta de testing. Las entradas de cdrom: se ignoran
+# con una suite de otra rama. Las entradas de cdrom: se ignoran
 # (son inofensivas y este script las comenta más abajo).
 legacy_bad_lines() {
-  awk '
+  awk -v acc="$ACEPTABLES" -v des="$DESCARTABLES" '
     /^[[:space:]]*deb(-src)?[[:space:]]/ {
       line = $0
       sub(/^[[:space:]]*deb(-src)?[[:space:]]+/, "", line)
@@ -236,13 +256,13 @@ legacy_bad_lines() {
       split(line, f, /[[:space:]]+/)
       if (f[1] ~ /^cdrom:/) next
       if (tolower(f[1]) !~ /debian/) next
-      if (f[2] != "testing" && f[2] !~ /^testing-/) print $0
+      if (f[2] !~ acc && f[2] !~ des) print $0
     }' "$LEGACY_SOURCES"
 }
 
 # Entradas de OTROS ficheros de $SOURCES_DIR (*.sources y *.list, además de
-# debian.sources) que apuntan al archivo de Debian con una suite distinta de
-# testing. Una entrada se considera "de Debian" si su URI es de debian.org
+# debian.sources) que apuntan al archivo de Debian con una suite de otra rama.
+# Una entrada se considera "de Debian" si su URI es de debian.org
 # o si usa debian-archive-keyring como clave; así no se marcan
 # repositorios de terceros (Docker, Brave...) aunque usen nombres de suite
 # parecidos. Se ignoran las entradas con "Enabled: no".
@@ -254,11 +274,11 @@ other_sources_bad_entries() {
     [[ -f "$f" && "$f" != "$SOURCES_FILE" ]] || continue
     case "$f" in
       *.sources)
-        awk -v file="$f" '
+        awk -v file="$f" -v acc="$ACEPTABLES" -v des="$DESCARTABLES" '
           function flush(   j) {
             if (n > 0 && enabled && isdeb)
               for (j = 1; j <= n; j++)
-                if (suites[j] != "testing" && suites[j] !~ /^testing-/) print file ": Suites: " suites[j]
+                if (suites[j] !~ acc && suites[j] !~ des) print file ": Suites: " suites[j]
             n = 0; enabled = 1; isdeb = 0
           }
           BEGIN { enabled = 1 }
@@ -272,7 +292,7 @@ other_sources_bad_entries() {
         ' "$f"
         ;;
       *.list)
-        awk -v file="$f" '
+        awk -v file="$f" -v acc="$ACEPTABLES" -v des="$DESCARTABLES" '
           /^[[:space:]]*deb(-src)?[[:space:]]/ {
             line = $0; opts = ""
             sub(/^[[:space:]]*deb(-src)?[[:space:]]+/, "", line)
@@ -280,7 +300,7 @@ other_sources_bad_entries() {
             split(line, f2, /[[:space:]]+/)
             if (f2[1] ~ /^cdrom:/) next
             isdeb = (tolower(f2[1]) ~ /[\/.]debian\.org(\/|$)/) || (opts ~ /debian-archive-keyring/)
-            if (isdeb && f2[2] != "testing" && f2[2] !~ /^testing-/) print file ": " $0
+            if (isdeb && f2[2] !~ acc && f2[2] !~ des) print file ": " $0
           }
         ' "$f"
         ;;
@@ -295,27 +315,27 @@ if [[ -f "$SOURCES_FILE" ]]; then
 
   SOURCES_BAD_SUITES="$(sources_file_bad_suites)"
   if [[ -n "$SOURCES_BAD_SUITES" ]]; then
-    warn "$SOURCES_FILE contiene suites que no son testing:"
+    warn "$SOURCES_FILE contiene suites de otra rama (no testing):"
     sed 's/^/      · /' <<<"$SOURCES_BAD_SUITES"
-    error "Este script solo trabaja con Debian Testing y no convierte otras suites automáticamente (tampoco con -y). Ajusta $SOURCES_FILE a mano (Suites: testing, testing-updates, testing-security) y vuelve a ejecutar el script."
+    error "Este script solo trabaja con Debian Testing y no convierte otras ramas a testing (tampoco con -y). Ajusta $SOURCES_FILE a mano (Suites: testing o el codename del sistema) y vuelve a ejecutar el script."
   fi
-  ok "$SOURCES_FILE ya existe y solo apunta a testing; no se sobrescribe."
+  ok "$SOURCES_FILE ya existe y solo apunta a la rama testing; no se sobrescribe."
 fi
 
 if [[ -f "$LEGACY_SOURCES" ]]; then
   LEGACY_BAD_LINES="$(legacy_bad_lines)"
   if [[ -n "$LEGACY_BAD_LINES" ]]; then
-    warn "$LEGACY_SOURCES contiene repositorios activos de Debian que no apuntan a testing:"
+    warn "$LEGACY_SOURCES contiene repositorios activos de Debian de otra rama (no testing):"
     sed 's/^/      · /' <<<"$LEGACY_BAD_LINES"
-    error "Este script solo trabaja con Debian Testing y no convierte otras suites automáticamente (tampoco con -y). Corrige o comenta esas líneas a mano y vuelve a ejecutar el script."
+    error "Este script solo trabaja con Debian Testing y no convierte otras ramas a testing (tampoco con -y). Corrige o comenta esas líneas a mano y vuelve a ejecutar el script."
   fi
 fi
 
 OTHER_BAD_ENTRIES="$(other_sources_bad_entries)"
 if [[ -n "$OTHER_BAD_ENTRIES" ]]; then
-  warn "Hay otros ficheros en $SOURCES_DIR con repositorios de Debian que no apuntan a testing:"
+  warn "Hay otros ficheros en $SOURCES_DIR con repositorios de Debian de otra rama (no testing):"
   sed 's/^/      · /' <<<"$OTHER_BAD_ENTRIES"
-  error "Este script solo trabaja con Debian Testing y no convierte otras suites automáticamente (tampoco con -y). Corrige o desactiva esas entradas a mano y vuelve a ejecutar el script."
+  error "Este script solo trabaja con Debian Testing y no convierte otras ramas a testing (tampoco con -y). Corrige o desactiva esas entradas a mano y vuelve a ejecutar el script."
 fi
 
 # ----------------------------------------------------------------------
@@ -336,8 +356,7 @@ fi
 
 if [[ ! -f "$SOURCES_FILE" ]]; then
   log "Escribiendo $SOURCES_FILE ..."
-  # Se configuran las tres suites de la rama testing que existen en el
-  # archivo: testing y testing-updates (deb.debian.org) y testing-security
+  # Se configuran testing (deb.debian.org) y testing-security
   # (security.debian.org). Backports no se añade aquí: está orientado a las
   # ramas stable que lo ofrecen.
   sudo tee "$SOURCES_FILE" >/dev/null <<'EOF'
@@ -348,18 +367,12 @@ Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 
 Types: deb
-URIs: https://deb.debian.org/debian
-Suites: testing-updates
-Components: main contrib non-free non-free-firmware
-Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
-
-Types: deb
 URIs: https://security.debian.org/debian-security
 Suites: testing-security
 Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 EOF
-  ok "$SOURCES_FILE escrito (testing + testing-updates + testing-security)."
+  ok "$SOURCES_FILE escrito (testing + testing-security)."
 fi
 
 log "Actualizando índices de paquetes..."
