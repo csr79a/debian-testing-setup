@@ -150,12 +150,10 @@ administración), ten en cuenta: AutoFirma mete su certificado dentro de
 la carpeta del perfil de Firefox que tengas en ese momento. Si instalas
 o reinstalas AutoFirma **después** de migrar a Firefox normal, no hay
 problema. Pero si AutoFirma ya estaba metido en un perfil de Firefox ESR
-que este script borra, el certificado se pierde con ese perfil, y
-tendrás que reinstalar/reinyectarlo:
-
-```bash
-sudo apt reinstall autofirma
-```
+que este script borra, el certificado se pierde con ese perfil. En ese
+caso, vuelve a instalar o ejecuta de nuevo el procedimiento de AutoFirma
+que utilizaste originalmente para que vuelva a inyectar su certificado
+en el nuevo perfil.
 
 ## 6. Orden recomendado
 
