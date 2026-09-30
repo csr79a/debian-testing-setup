@@ -87,6 +87,10 @@ confirm() {
 # Con -y también evitamos que apt/debconf se queden esperando input
 # durante la eliminación/purga (p. ej. plantillas debconf de algún
 # paquete PIM). Mismo patrón que setup-debian-testing.sh.
+if [[ "$ASSUME_YES" -ne 1 && ! -t 0 ]]; then
+  error "Este script usa whiptail y necesita una terminal interactiva (TTY). Ejecuta la sesión SSH con 'ssh -t' o utiliza './cleanup-debian-testing.sh -y' si realmente quieres modo no interactivo."
+fi
+
 if [[ "$ASSUME_YES" -eq 1 ]]; then
   export DEBIAN_FRONTEND=noninteractive
 fi
@@ -335,7 +339,13 @@ fi
 
 echo
 if confirm "¿Ejecutar 'apt autoremove' para limpiar dependencias huérfanas?"; then
-  if sudo apt autoremove; then
+  if [[ "$ASSUME_YES" -eq 1 ]]; then
+    if sudo apt autoremove -y; then
+      ok "autoremove completado."
+    else
+      warn "Falló 'apt autoremove'. Se continúa igualmente."
+    fi
+  elif sudo apt autoremove; then
     ok "autoremove completado."
   else
     warn "Cancelado o falló 'apt autoremove'. Se continúa igualmente."
