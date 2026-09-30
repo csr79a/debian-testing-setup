@@ -176,7 +176,9 @@ Tras un `apt full-upgrade`, alguno de estos paquetes podría volver a
 aparecer si otro paquete lo reintroduce como dependencia. Si pasa,
 vuelve a ejecutar este script.
 
-Validado en un sistema Testing real: se ejecutó sin errores.
+La documentación se mantiene alineada con el comportamiento actual del
+script; antes de publicar una nueva versión conviene repetir una prueba
+completa en una instalación limpia de Debian Testing.
 
 ## Licencia
 
