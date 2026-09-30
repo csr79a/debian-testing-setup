@@ -103,11 +103,12 @@ grupos** (no solo los "seguros"), usando `apt remove -y` (o
 - El aviso de KDE Partition Manager sobre `gnome-disk-utility` solo
 aparece en las pantallas del modo interactivo. Con `-y`, se elimina
 igualmente aunque `gnome-disk-utility` no esté instalado.
-- Con `-y`, la pregunta de `apt autoremove` sigue mostrándose: el script
-no le pasa `-y` a ese comando (a diferencia de los grupos), así que
-`apt` te enseña su lista de paquetes y espera confirmación. En una
-ejecución sin terminal interactiva, `apt` abortará esa pregunta y el
-script continuará con el resto.
+- Con `-y`, también se ejecuta `apt autoremove -y`, por lo que no queda
+ninguna pregunta interactiva pendiente.
+- Sin `-y`, el script requiere una terminal interactiva (TTY), porque las
+confirmaciones se muestran con `whiptail`. En SSH, usa una sesión con
+`ssh -t` o ejecuta el script con `-y` si realmente quieres modo no
+interactivo.
 - `-y` exporta `DEBIAN_FRONTEND=noninteractive` para que ningún paquete
 se quede esperando una pantalla de `debconf` durante la eliminación.
 
