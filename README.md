@@ -47,7 +47,7 @@ debian-testing-setup/
 
 ## Uso rápido
 
-Si acabas de instalar Debian Testing y quieres dejar los repositorios en el formato esperado por este proyecto, ejecuta primero `corregir-repos-testing.sh`. Después ejecuta `setup/setup-debian-testing.sh` para la configuración del sistema. El script de corrección no convierte automáticamente una instalación que apunte a otra suite: si detecta una suite distinta de `testing`, se detiene.
+Si acabas de instalar Debian Testing y quieres dejar los repositorios en el formato esperado por este proyecto, ejecuta primero `corregir-repos-testing.sh`. Después ejecuta `setup/setup-debian-testing.sh` para la configuración del sistema. El script de corrección escribe automáticamente las tres suites de la rama testing (`testing`, `testing-updates` y `testing-security`) y no convierte una instalación que apunte a otra rama: si detecta una suite que no sea de testing, se detiene.
 
 ```bash
 chmod +x setup/setup-debian-testing.sh cleanup/cleanup-debian-testing.sh
@@ -68,7 +68,8 @@ y ejecutar ambos scripts con seguridad.
 ## Qué hace cada script
 
 - **`setup/`** — comprueba que todos los repositorios de Debian apunten
-solo a `testing` (si no, se detiene, también con `-y`), escribe los
+a la rama de testing (`testing`, `testing-updates`, `testing-security`;
+si no, se detiene, también con `-y`), escribe los
 repos en formato deb822, `apt full-upgrade` opcional, microcode según
 CPU, paquetes de desarrollo/multimedia/sistema/utilidades de disco/OCR
 (Tesseract), fuentes de Windows y de Ubuntu, Flathub, zram con tamaño

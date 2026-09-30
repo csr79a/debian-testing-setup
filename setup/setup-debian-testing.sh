@@ -209,17 +209,19 @@ SOURCES_FILE="$SOURCES_DIR/debian.sources"
 #
 # Se comprueban debian.sources, /etc/apt/sources.list y el resto de
 # ficheros *.sources y *.list de /etc/apt/sources.list.d que apunten a Debian.
-# Solo se acepta la suite "testing" (el alias rolling; NO el codename fijo
-# de turno, como "forky" o "trixie", que deja de significar "testing" en
-# cuanto esa versión se convierte en stable). Cualquier otra suite
-# (unstable, sid, bookworm, trixie, stable...) detiene el script ANTES de
+# Se acepta la familia de testing: "testing" y sus derivadas
+# (testing-updates, testing-security, testing-proposed-updates,
+# testing-backports), que sí existen en el archivo de Debian. Se RECHAZA el
+# codename fijo de turno (p. ej. "forky" o "trixie", que deja de significar
+# "testing" en cuanto esa versión se convierte en stable) y cualquier otra
+# suite (unstable, sid, bookworm, stable...) detiene el script ANTES de
 # continuar con apt update/full-upgrade, y también con -y: es una
 # comprobación de seguridad, no una pregunta que se pueda aceptar
-# automáticamente. El script no convierte esas suites a Testing.
+# automáticamente. El script no convierte esas otras suites a Testing.
 
-# Suites de $SOURCES_FILE que no son testing (una por línea).
+# Suites de $SOURCES_FILE que no son de la familia testing (una por línea).
 sources_file_bad_suites() {
-  awk '/^Suites:/ { for (i = 2; i <= NF; i++) if ($i != "testing") print $i }' "$SOURCES_FILE" | sort -u
+  awk '/^Suites:/ { for (i = 2; i <= NF; i++) { s = $i; if (s != "testing" && s !~ /^testing-/) print s } }' "$SOURCES_FILE" | sort -u
 }
 
 # Líneas activas de $LEGACY_SOURCES que apuntan a un repositorio de Debian
@@ -234,7 +236,7 @@ legacy_bad_lines() {
       split(line, f, /[[:space:]]+/)
       if (f[1] ~ /^cdrom:/) next
       if (tolower(f[1]) !~ /debian/) next
-      if (f[2] != "testing") print $0
+      if (f[2] != "testing" && f[2] !~ /^testing-/) print $0
     }' "$LEGACY_SOURCES"
 }
 
@@ -256,7 +258,7 @@ other_sources_bad_entries() {
           function flush(   j) {
             if (n > 0 && enabled && isdeb)
               for (j = 1; j <= n; j++)
-                if (suites[j] != "testing") print file ": Suites: " suites[j]
+                if (suites[j] != "testing" && suites[j] !~ /^testing-/) print file ": Suites: " suites[j]
             n = 0; enabled = 1; isdeb = 0
           }
           BEGIN { enabled = 1 }
@@ -278,7 +280,7 @@ other_sources_bad_entries() {
             split(line, f2, /[[:space:]]+/)
             if (f2[1] ~ /^cdrom:/) next
             isdeb = (tolower(f2[1]) ~ /[\/.]debian\.org(\/|$)/) || (opts ~ /debian-archive-keyring/)
-            if (isdeb && f2[2] != "testing") print file ": " $0
+            if (isdeb && f2[2] != "testing" && f2[2] !~ /^testing-/) print file ": " $0
           }
         ' "$f"
         ;;
@@ -295,7 +297,7 @@ if [[ -f "$SOURCES_FILE" ]]; then
   if [[ -n "$SOURCES_BAD_SUITES" ]]; then
     warn "$SOURCES_FILE contiene suites que no son testing:"
     sed 's/^/      · /' <<<"$SOURCES_BAD_SUITES"
-    error "Este script solo trabaja con Debian Testing y no convierte otras suites automáticamente (tampoco con -y). Ajusta $SOURCES_FILE a mano (Suites: testing) y vuelve a ejecutar el script."
+    error "Este script solo trabaja con Debian Testing y no convierte otras suites automáticamente (tampoco con -y). Ajusta $SOURCES_FILE a mano (Suites: testing, testing-updates, testing-security) y vuelve a ejecutar el script."
   fi
   ok "$SOURCES_FILE ya existe y solo apunta a testing; no se sobrescribe."
 fi
@@ -334,23 +336,30 @@ fi
 
 if [[ ! -f "$SOURCES_FILE" ]]; then
   log "Escribiendo $SOURCES_FILE ..."
-  # Solo se configura la suite "testing". A día de hoy, la cobertura de
-  # seguridad de testing no tiene el mismo tratamiento que stable y puede
-  # sufrir retrasos por migraciones y transiciones. Debian dispone además
-  # de una suite "testing-security", pero suele estar vacía y este script
-  # no la añade automáticamente porque su comprobación de seguridad exige
-  # que las fuentes de Debian usen exactamente la suite "testing". Si el
-  # usuario quiere gestionar testing-security, debe adaptar manualmente
-  # las fuentes y esa comprobación antes de ejecutarlo. Backports tampoco
-  # se añade aquí: está orientado a las ramas stable que lo ofrecen.
+  # Se configuran las tres suites de la rama testing que existen en el
+  # archivo: testing y testing-updates (deb.debian.org) y testing-security
+  # (security.debian.org). Backports no se añade aquí: está orientado a las
+  # ramas stable que lo ofrecen.
   sudo tee "$SOURCES_FILE" >/dev/null <<'EOF'
 Types: deb
 URIs: https://deb.debian.org/debian
 Suites: testing
 Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: https://deb.debian.org/debian
+Suites: testing-updates
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: https://security.debian.org/debian-security
+Suites: testing-security
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 EOF
-  ok "$SOURCES_FILE escrito."
+  ok "$SOURCES_FILE escrito (testing + testing-updates + testing-security)."
 fi
 
 log "Actualizando índices de paquetes..."

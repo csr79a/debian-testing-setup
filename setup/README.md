@@ -151,7 +151,7 @@ marcadas con `Enabled: no`. Limitación: un mirror con dominio propio y sin
 ## Repositorios
 
 Formato deb822, en `/etc/apt/sources.list.d/debian.sources` (solo se crea
-si no existe):
+si no existe), con las tres suites de la rama testing:
 
 ```
 Types: deb
@@ -159,15 +159,25 @@ URIs: https://deb.debian.org/debian
 Suites: testing
 Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: https://deb.debian.org/debian
+Suites: testing-updates
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: https://security.debian.org/debian-security
+Suites: testing-security
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 ```
 
-No se añade ninguna suite `testing-security` ni `testing-backports` de
-forma automática. Debian dispone de `testing-security`, pero suele estar
-vacía y este script mantiene deliberadamente una comprobación estricta:
-las fuentes de Debian deben usar exactamente `testing`. Si quieres usar
-`testing-security`, tendrás que adaptar esa comprobación y las fuentes
-manualmente antes de ejecutar el script. `testing-backports` no se añade
-porque Backports está orientado a las ramas stable que lo ofrecen.
+Se acepta la familia de testing (`testing`, `testing-updates`,
+`testing-security`, `testing-proposed-updates`, `testing-backports`); pero
+cualquier otra suite (`stable`, `bookworm`, `sid`...) detiene el script sin
+convertirla. `testing-backports` no se añade por defecto porque Backports
+está orientado a las ramas stable que lo ofrecen.
 
 ## Sobre la seguridad en Testing
 
