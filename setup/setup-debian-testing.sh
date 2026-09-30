@@ -387,12 +387,9 @@ fi
 # "apt install", en vez de un único comando con los ~25 paquetes juntos.
 # Con "set -e" activo, un solo paquete roto/en tránsito (algo frecuente
 # en Sid durante transiciones de librerías) haría abortar TODO el
-# script de golpe -- y a estas alturas ya se cambiaron los repos a
-# unstable y se corrió full-upgrade, así que un aborto total dejaría el
-# sistema a mitad de camino sin fuentes/Flathub/zram/Firefox. Al
-# instalar por grupos con su propia comprobación de resultado, un fallo
-# puntual solo omite ESE grupo (se avisa cuál y con qué paquetes) y el
-# resto de la instalación sigue igual.
+# script de golpe. Al instalar por grupos con su propia comprobación de
+# resultado, un fallo puntual solo omite ESE grupo (se avisa cuál y con qué
+# paquetes) y el resto de la instalación sigue igual.
 
 if apt-cache show 7zip >/dev/null 2>&1; then
   ARCHIVE_PACKAGES=(unzip zip 7zip)
@@ -401,8 +398,8 @@ else
   ARCHIVE_PACKAGES=(unzip zip p7zip-full)
 fi
 
-# Dos arrays paralelos (los índices deben corresponderse 1 a 1): nombre
-# descriptivo del grupo y string con sus paquetes separados por espacio.
+# Cada entrada combina "nombre|paquetes" para que nombre y paquetes no
+# puedan quedar desincronizados al añadir o modificar un grupo.
 GROUPS=(
   "Control de versiones / descargas|git git-lfs curl wget"
   "Compresión|${ARCHIVE_PACKAGES[*]}"
