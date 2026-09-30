@@ -6,7 +6,7 @@
 set -euo pipefail
 
 if [ "$EUID" -ne 0 ]; then
-    exec sudo -- "$0" "$@"
+    exec sudo -- bash "$0" "$@"
 fi
 
 source /etc/os-release
@@ -25,27 +25,36 @@ fi
 
 echo "[OK] Debian detectado: $CODENAME"
 
-BACKUP="/root/backup-repos-debian-$(date +%Y%m%d-%H%M%S)"
-mkdir -p "$BACKUP"
-
-cp -a /etc/apt/sources.list "$BACKUP/" 2>/dev/null || true
-cp -a /etc/apt/sources.list.d "$BACKUP/" 2>/dev/null || true
-
-echo "[OK] Copia de seguridad: $BACKUP"
-
 SOURCE_FILE="/etc/apt/sources.list.d/debian.sources"
 KEYRING="/usr/share/keyrings/debian-archive-keyring.gpg"
 
 ya_configurado=false
 if [ -f "$SOURCE_FILE" ] \
-    && [ -z "$(awk '/^Suites:/ { for (i=2;i<=NF;i++) if ($i != "testing") print $i }' "$SOURCE_FILE")" ] \
-    && grep -q "^Suites:" "$SOURCE_FILE" \
-    && grep -q "Signed-By:" "$SOURCE_FILE"; then
+    && grep -q "^Suites:[[:space:]]*testing[[:space:]]*$" "$SOURCE_FILE" \
+    && grep -q "^Components:[[:space:]]*main[[:space:]]\+contrib[[:space:]]\+non-free[[:space:]]\+non-free-firmware[[:space:]]*$" "$SOURCE_FILE" \
+    && grep -q "^Signed-By:[[:space:]]*$KEYRING[[:space:]]*$" "$SOURCE_FILE"; then
     ya_configurado=true
 fi
 
-# El sources.list clásico se desactiva siempre que exista, esté o no
-# ya migrado debian.sources, para que apt no lea ambos a la vez.
+# Solo se crea una copia de seguridad si realmente vamos a modificar
+# la configuración de APT. Una ejecución que ya está correctamente
+# configurada no genera backups innecesarios.
+NECESITA_CAMBIO=1
+if [ "$ya_configurado" = true ] \
+    && { [ ! -f /etc/apt/sources.list ] || [ ! -s /etc/apt/sources.list ]; }; then
+    NECESITA_CAMBIO=0
+fi
+
+if [ "$NECESITA_CAMBIO" -eq 1 ]; then
+    BACKUP="/root/backup-repos-debian-$(date +%Y%m%d-%H%M%S)"
+    mkdir -p "$BACKUP"
+    cp -a /etc/apt/sources.list "$BACKUP/" 2>/dev/null || true
+    cp -a /etc/apt/sources.list.d "$BACKUP/" 2>/dev/null || true
+    echo "[OK] Copia de seguridad: $BACKUP"
+fi
+
+# El sources.list clásico se desactiva solo si existe contenido activo,
+# y únicamente después de guardar la copia de seguridad.
 if [ -f /etc/apt/sources.list ] && [ -s /etc/apt/sources.list ]; then
     mv /etc/apt/sources.list /etc/apt/sources.list.disabled
     echo "[OK] sources.list antiguo desactivado."
