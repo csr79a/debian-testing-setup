@@ -10,7 +10,7 @@
 Elimina aplicaciones de **KDE Plasma** que Debian instala por defecto
 junto a la tarea de escritorio, pero que muchos usuarios no llegan a
 usar (suite PIM/Kontact, herramientas de accesibilidad, Konqueror, xterm,
-KDE Connect, KDE Partition Manager, e ImageMagick de forma opcional). Es
+KDE Connect, Dragon Player, Juk, KDE Partition Manager, e ImageMagick de forma opcional). Es
 el complemento de `setup-debian-testing.sh`: ese script instala, este
 quita.
 
@@ -119,6 +119,8 @@ se quede esperando una pantalla de `debconf` durante la eliminación.
 | Suite PIM / Kontact                     | `kmail`, `kaddressbook`, `ktnef`, `kdepim-themeeditors`, `pim-sieve-editor`, `pim-data-exporter`, `korganizer`, `akregator` | Todos comparten árbol de dependencias con Akonadi (calendario y lector de RSS incluidos). `ktnef` es un paquete de transición que hoy en día vive dentro de `kmail`. `kdepim-themeeditors` es el paquete real detrás de "Editor de temas de Contact" **y** "Editor de temas de encabezados de KMail". |
 | Accesibilidad                           | `kmousetool`, `kmouth`, `kontrast`                                                                                          | Independientes del grupo PIM: **no** se eliminan solos al quitar KMail, por eso van en grupo aparte.                                                                                                     |
 | Konqueror                               | `konqueror`                                                                                                                 | Navegador/gestor de archivos histórico de KDE, sin relación con los otros grupos.                                                                                                                        |
+| Dragon Player                           | `dragonplayer`                                                                                                             | Reproductor multimedia de KDE. Independiente de los grupos anteriores. |
+| Juk                                      | `juk`                                                                                                                      | Reproductor/gestor de música de KDE. Independiente de los grupos anteriores. |
 | xterm                                   | `xterm`                                                                                                                     | Emulador de terminal genérico de X11, no es una app de Plasma ni depende de los grupos anteriores; va en su propio grupo.                                                                                |
 | KDE Connect                             | `kdeconnect`                                                                                                                | Integra el móvil con el escritorio (notificaciones, compartir archivos, control remoto...). Independiente de todos los grupos anteriores.                                                                |
 | KDE Partition Manager                   | `partitionmanager`                                                                                                          | Se elimina porque `setup-debian-testing.sh` instala GNOME Disk Utility como alternativa. En modo interactivo, si `gnome-disk-utility` **no** está instalado, el script te avisa explícitamente antes de confirmar: si sigues adelante, te quedas sin gestor de particiones gráfico. |
