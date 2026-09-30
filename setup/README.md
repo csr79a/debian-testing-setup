@@ -346,7 +346,7 @@ conservan datos de ESR.
 > perfil release nuevo sin conflicto. Si AutoFirma ya estaba instalado
 > sobre un perfil ESR que este script borra, el certificado se pierde
 > con esa carpeta y hay que forzar a AutoFirma a reinyectarlo con
-> `sudo apt reinstall autofirma`.
+> el procedimiento de AutoFirma que utilizaste originalmente para volver a inyectar el certificado en el nuevo perfil.
 
 ## Driver NVIDIA
 
