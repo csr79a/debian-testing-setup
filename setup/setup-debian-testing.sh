@@ -329,15 +329,14 @@ fi
 if [[ ! -f "$SOURCES_FILE" ]]; then
   log "Escribiendo $SOURCES_FILE ..."
   # Solo se configura la suite "testing". A día de hoy, la cobertura de
-  # seguridad de testing NO está gestionada de forma fiable/puntual por
-  # el equipo de seguridad de Debian (situación que varía a lo largo del
-  # ciclo: mejora según se acerca el freeze). Por eso no se añade aquí
-  # ninguna suite "testing-security" de forma automática: si en algún
-  # momento necesitas parches de seguridad garantizados, la propia
-  # documentación de Debian recomienda apuntar temporalmente esas
-  # entradas a la suite de la stable actual (ver resumen final y
-  # https://www.debian.org/releases/testing/). Backports tampoco aplica
-  # aquí: solo existe para la rama stable.
+  # seguridad de testing no tiene el mismo tratamiento que stable y puede
+  # sufrir retrasos por migraciones y transiciones. Debian dispone además
+  # de una suite "testing-security", pero suele estar vacía y este script
+  # no la añade automáticamente porque su comprobación de seguridad exige
+  # que las fuentes de Debian usen exactamente la suite "testing". Si el
+  # usuario quiere gestionar testing-security, debe adaptar manualmente
+  # las fuentes y esa comprobación antes de ejecutarlo. Backports tampoco
+  # se añade aquí: está orientado a las ramas stable que lo ofrecen.
   sudo tee "$SOURCES_FILE" >/dev/null <<'EOF'
 Types: deb
 URIs: https://deb.debian.org/debian
@@ -831,10 +830,14 @@ Notas específicas de Testing:
     recibir paquetes con funcionalidades nuevas, solo correcciones de
     errores aprobadas por el equipo de release. Es normal notar que el
     ritmo de actualizaciones baja mucho durante esos meses.
-  - Volver a stable desde testing es, en general, más sencillo que
-    desde Sid: basta con cambiar el sources.list a la suite stable y
-    ejecutar un full-upgrade, aunque siempre conviene revisar antes si
-    hay downgrades de versión de por medio.
+  - Este script no admite una conversión automática de Testing a stable.
+    Cambiar las fuentes de una instalación Testing a stable puede dejar
+    paquetes de versiones superiores que requieran downgrades y una
+    reconciliación manual de dependencias. Para volver a stable de forma
+    limpia, la opción más segura suele ser reinstalar la versión stable
+    y restaurar tus datos/configuración; si quieres intentar una
+    conversión, haz una planificación específica antes de cambiar las
+    fuentes.
 
 Notas generales:
   - fd-find se instala como binario "fdfind", no "fd". Si lo quieres
