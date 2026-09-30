@@ -162,7 +162,12 @@ Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 ```
 
 No se añade ninguna suite `testing-security` ni `testing-backports` de
-forma automática. Ver el siguiente apartado.
+forma automática. Debian dispone de `testing-security`, pero suele estar
+vacía y este script mantiene deliberadamente una comprobación estricta:
+las fuentes de Debian deben usar exactamente `testing`. Si quieres usar
+`testing-security`, tendrás que adaptar esa comprobación y las fuentes
+manualmente antes de ejecutar el script. `testing-backports` no se añade
+porque Backports está orientado a las ramas stable que lo ofrecen.
 
 ## Sobre la seguridad en Testing
 
@@ -363,9 +368,9 @@ enteros con el mismo contenido, así que no se duplican.
 en particular, si ESR ya no está instalado, no se borra ningún perfil
 de Firefox.
 
-Validado en un sistema Testing real: tras corregir el `sources.list`
-inicial (por defecto apuntando a la stable actual, algo normal en toda
-instalación fresca de Debian), el script se ejecutó sin errores.
+La documentación se mantiene alineada con el comportamiento actual del
+script; antes de publicar una nueva versión conviene repetir una prueba
+completa en una instalación limpia de Debian Testing.
 
 ## Licencia
 
