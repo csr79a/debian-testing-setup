@@ -86,10 +86,16 @@ confirm() {
   local prompt="$1"
   local height="${2:-14}"
   local width="${3:-70}"
+  local rc=0
   if [[ "$ASSUME_YES" -eq 1 ]]; then
     return 0
   fi
-  whiptail --title "$TITLE" --yesno "$prompt" "$height" "$width"
+  whiptail --title "$TITLE" --yesno "$prompt" "$height" "$width" || rc=$?
+  case "$rc" in
+    0)     return 0 ;;   # Sí
+    1|255) return 1 ;;   # No, o ESC (cancelar)
+    *)     error "whiptail falló con código $rc. Comprueba que estás en una terminal interactiva y que whiptail funciona." ;;
+  esac
 }
 
 # Con -y también evitamos que apt/debconf se queden esperando input
@@ -97,7 +103,7 @@ confirm() {
 # silencia TODOS los prompts de debconf durante la instalación, no solo
 # los de firmware, así que solo se activa en modo no interactivo
 # explícito.
-if [[ "$ASSUME_YES" -ne 1 && ! -t 0 ]]; then
+if [[ "$ASSUME_YES" -ne 1 ]] && ! { true </dev/tty; } 2>/dev/null; then
   error "Este script usa whiptail y necesita una terminal interactiva (TTY). Ejecuta la sesión SSH con 'ssh -t' o utiliza './setup-debian-testing.sh -y' si realmente quieres modo no interactivo."
 fi
 
@@ -480,6 +486,11 @@ if ensure_cmd wget wget; then
   WGET_OK=1
 fi
 
+LSPCI_OK=0
+if ensure_cmd lspci pciutils; then
+  LSPCI_OK=1
+fi
+
 # ----------------------------------------------------------------------
 # 4. Fuentes de Windows y de Ubuntu (opcional)
 # ----------------------------------------------------------------------
@@ -539,7 +550,8 @@ fi
 # ----------------------------------------------------------------------
 
 ZRAM_CONFIGURED=0
-TOTAL_RAM_KB="$(grep -m1 '^MemTotal:' /proc/meminfo | awk '{print $2}')"
+TOTAL_RAM_KB="$(awk '/^MemTotal:/ { print $2; exit }' /proc/meminfo 2>/dev/null || true)"
+TOTAL_RAM_KB="${TOTAL_RAM_KB:-0}"
 TOTAL_RAM_MB=$(( TOTAL_RAM_KB / 1024 ))
 ZRAM_SIZE_MB=$(( TOTAL_RAM_MB / 2 ))
 
@@ -880,13 +892,22 @@ if [[ "${ESR_PROFILES_REMOVED:-0}" -eq 1 ]]; then
 EOF
 fi
 
-if lspci 2>/dev/null | grep -qi nvidia; then
+LSPCI_OUT=""
+if [[ "${LSPCI_OK:-0}" -eq 1 ]]; then
+  LSPCI_OUT="$(lspci 2>/dev/null || true)"
+fi
+if grep -qi nvidia <<<"$LSPCI_OUT"; then
   cat <<'EOF'
 
   - Se ha detectado una GPU NVIDIA, pero este script no instala su
     driver: gestiónalo aparte (repo/keyring, blacklist de nouveau,
     GRUB, initramfs) según tu hardware.
 EOF
+fi
+
+if [[ "${LSPCI_OK:-0}" -eq 0 ]]; then
+  echo
+  echo "  - ATENCIÓN: 'lspci' no está disponible. No se pudo comprobar si hay una GPU NVIDIA."
 fi
 
 if [[ "${WGET_OK:-0}" -eq 0 ]]; then
