@@ -47,7 +47,7 @@ debian-testing-setup/
 
 ## Uso rápido
 
-Si acabas de instalar Debian Testing y quieres dejar los repositorios en el formato esperado por este proyecto, ejecuta primero `corregir-repos-testing.sh`. Después ejecuta `setup/setup-debian-testing.sh` para la configuración del sistema. El script de corrección escribe automáticamente `testing` y `testing-security`, y acepta también el codename del sistema (p. ej. `forky`) cuando `/etc/os-release` confirma que es testing. No convierte una instalación que apunte a otra rama: si detecta una suite que no sea de testing, se detiene.
+Si acabas de instalar Debian Testing y quieres dejar los repositorios en el formato esperado por este proyecto, ejecuta primero `corregir-repos-testing.sh`. Después ejecuta `setup/setup-debian-testing.sh` para la configuración del sistema. El script de corrección normaliza las fuentes de Debian a las suites de la rama Testing: `testing`, `testing-updates` y `testing-security`. Si detecta que el sistema está usando el codename actual de Testing (p. ej. `forky`), lo reemplaza por `testing` para evitar quedar fijado a ese codename cuando pase a stable. No convierte una instalación que pertenezca a otra rama (por ejemplo, stable o unstable): si detecta una suite ajena a Testing, se detiene.
 
 ```bash
 chmod +x setup/setup-debian-testing.sh cleanup/cleanup-debian-testing.sh
