@@ -82,9 +82,9 @@ chmod +x corregir-repos-testing.sh
 ./corregir-repos-testing.sh
 ```
 
-Este script se eleva mediante `sudo` cuando necesita modificar `/etc/apt`. Comprueba que el sistema sea Debian y que la suite detectada sea `testing`; **no convierte automáticamente stable, unstable u otra suite a testing**. Si ya está correctamente configurado, no rehace la configuración y ejecuta `apt update`.
+Este script se eleva mediante `sudo` cuando necesita modificar `/etc/apt`. Comprueba que el sistema sea Debian y que pertenezca a la rama Testing. Si las fuentes usan el codename actual de Testing (por ejemplo, `forky`), las normaliza a `testing`, `testing-updates` y `testing-security`; **no convierte automáticamente stable, unstable u otra rama a testing**. Si ya está correctamente configurado, no rehace la configuración y ejecuta `apt update`.
 
-Después de este paso, continúa con la configuración del sistema.
+Después de este paso, las fuentes Debian quedan apuntando a `testing`, `testing-updates` y `testing-security`. Esto evita que la instalación quede fijada al codename actual cuando esa versión pase a stable. Continúa después con la configuración del sistema.
 
 ## 4. Ejecutar los scripts
 
@@ -171,7 +171,7 @@ en el nuevo perfil.
 
 ## 7. Orden recomendado
 
-1. `corregir-repos-testing.sh`, si necesitas normalizar los repositorios Debian Testing.
+1. `corregir-repos-testing.sh`, si necesitas normalizar los repositorios Debian Testing o si tus fuentes todavía usan el codename actual (por ejemplo, `forky`).
 2. `setup/setup-debian-testing.sh` (sin `-y` la primera vez), para dejar el sistema base configurado.
 3. Revisa que todo haya ido bien (lee el resumen final que imprime el propio script).
 4. Si quieres, `cleanup/cleanup-debian-testing.sh`, para quitar las apps de KDE que no uses.
