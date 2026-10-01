@@ -26,7 +26,9 @@ Versiones documentadas: `setup-debian-testing.sh` 1.0.0 y
 debian-testing-setup/
 ├── MANUAL.md              ← empieza por aquí si no sabes bash
 ├── README.md               (este archivo)
-├── corregir-repos-testing.sh ← normaliza los repositorios Debian Testing
+├── repos/
+│   ├── corregir-repos-testing.sh ← normaliza los repositorios Debian Testing
+│   └── apt-update.sh        ← sincroniza los índices de APT (`apt update`)
 ├── setup/
 │   ├── setup-debian-testing.sh
 │   └── README.md            ← detalle de qué instala
@@ -40,14 +42,15 @@ debian-testing-setup/
 | Quieres...                                              | Lee...              |
 | --------------------------------------------------------- | ---------------------- |
 | Una visión general del proyecto                         | Este README (aquí)   |
-| Corregir/normalizar los repositorios de Debian Testing  | `corregir-repos-testing.sh` |
+| Corregir/normalizar los repositorios de Debian Testing  | `repos/corregir-repos-testing.sh` |
+| Sincronizar los índices de APT (`apt update`)           | `repos/apt-update.sh` |
 | Instrucciones paso a paso, sin dar nada por sabido       | `MANUAL.md`           |
 | El detalle técnico de qué instala `setup-debian-testing.sh` | `setup/README.md`     |
 | El detalle técnico de qué elimina `cleanup-debian-testing.sh` | `cleanup/README.md`   |
 
 ## Uso rápido
 
-Si acabas de instalar Debian Testing y quieres dejar los repositorios en el formato esperado por este proyecto, ejecuta primero `corregir-repos-testing.sh`. Después ejecuta `setup/setup-debian-testing.sh` para la configuración del sistema. El script de corrección normaliza las fuentes de Debian a las suites de la rama Testing: `testing`, `testing-updates` y `testing-security`. Si detecta que el sistema está usando el codename actual de Testing (p. ej. `forky`), lo reemplaza por `testing` para evitar quedar fijado a ese codename cuando pase a stable. No convierte una instalación que pertenezca a otra rama (por ejemplo, stable o unstable): si detecta una suite ajena a Testing, se detiene.
+Si acabas de instalar Debian Testing y quieres dejar los repositorios en el formato esperado por este proyecto, ejecuta primero `repos/corregir-repos-testing.sh`. Después ejecuta `setup/setup-debian-testing.sh` para la configuración del sistema. El script de corrección normaliza las fuentes de Debian a las suites de la rama Testing: `testing`, `testing-updates` y `testing-security`. Si detecta que el sistema está usando el codename actual de Testing (p. ej. `forky`), lo reemplaza por `testing` para evitar quedar fijado a ese codename cuando pase a stable. No convierte una instalación que pertenezca a otra rama (por ejemplo, stable o unstable): si detecta una suite ajena a Testing, se detiene.
 
 ```bash
 chmod +x setup/setup-debian-testing.sh cleanup/cleanup-debian-testing.sh
@@ -66,6 +69,12 @@ explica paso a paso, sin asumir que sabes bash, cómo dejar `sudo` listo
 y ejecutar ambos scripts con seguridad.
 
 ## Qué hace cada script
+
+- **`repos/`** — `corregir-repos-testing.sh` normaliza los repositorios
+de Debian Testing (formato deb822, suites `testing`, `testing-updates` y
+`testing-security`; normaliza también el codename actual de Testing) y **no
+convierte otras ramas**; `apt-update.sh` solo sincroniza los índices de APT
+(`apt update`), sin actualizar paquetes ni tocar las fuentes.
 
 - **`setup/`** — comprueba que todos los repositorios de Debian apunten
 a la rama de testing (`testing`, `testing-updates` y `testing-security`; si

@@ -17,7 +17,7 @@ al sistema, darles permiso de ejecución y ejecutarlos con seguridad.
 
 Los scripts de configuración necesitan ejecutar comandos con privilegios de
 administrador (instalar paquetes, escribir en `/etc`, etc.), y normalmente lo hacen
-a través de `sudo`. El script `corregir-repos-testing.sh` es una excepción:
+a través de `sudo`. El script `repos/corregir-repos-testing.sh` es una excepción:
 se inicia como usuario normal y se eleva mediante `sudo` cuando necesita modificar APT. Si tu
 usuario ya puede usar `sudo` (lo normal si instalaste Debian marcando
 la opción de crear un usuario administrador), puedes saltar a la
@@ -75,11 +75,11 @@ Deberías ver algo como:
 
 ## 3. Corregir los repositorios antes de configurar Debian Testing
 
-Si tu instalación de Debian Testing necesita normalizar sus repositorios, ejecuta primero el script raíz `corregir-repos-testing.sh` como usuario normal:
+Si tu instalación de Debian Testing necesita normalizar sus repositorios, ejecuta primero el script `repos/corregir-repos-testing.sh` como usuario normal:
 
 ```bash
-chmod +x corregir-repos-testing.sh
-./corregir-repos-testing.sh
+chmod +x repos/corregir-repos-testing.sh
+./repos/corregir-repos-testing.sh
 ```
 
 Este script se eleva mediante `sudo` cuando necesita modificar `/etc/apt`. Comprueba que el sistema sea Debian y que pertenezca a la rama Testing. Si las fuentes usan el codename actual de Testing (por ejemplo, `forky`), las normaliza a `testing`, `testing-updates` y `testing-security`; **no convierte automáticamente stable, unstable u otra rama a testing**. Si ya está correctamente configurado, no rehace la configuración y ejecuta `apt update`.
@@ -171,7 +171,7 @@ en el nuevo perfil.
 
 ## 7. Orden recomendado
 
-1. `corregir-repos-testing.sh`, si necesitas normalizar los repositorios Debian Testing o si tus fuentes todavía usan el codename actual (por ejemplo, `forky`).
+1. `repos/corregir-repos-testing.sh`, si necesitas normalizar los repositorios Debian Testing o si tus fuentes todavía usan el codename actual (por ejemplo, `forky`).
 2. `setup/setup-debian-testing.sh` (sin `-y` la primera vez), para dejar el sistema base configurado.
 3. Revisa que todo haya ido bien (lee el resumen final que imprime el propio script).
 4. Si quieres, `cleanup/cleanup-debian-testing.sh`, para quitar las apps de KDE que no uses.

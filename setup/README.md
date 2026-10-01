@@ -140,7 +140,7 @@ con instalaciones que todavía tengan las fuentes expresadas con el
 codename actual. **Esta aceptación no convierte esas fuentes en suites
 permanentes:** el script de configuración no sobrescribe un
 `debian.sources` que ya existe. Para dejar una instalación siguiendo
-siempre la suite móvil `testing`, usa antes `corregir-repos-testing.sh`, que
+siempre la suite móvil `testing`, usa antes `repos/corregir-repos-testing.sh`, que
 normaliza las fuentes a `testing`, `testing-updates` y `testing-security`.
 Las suites que no se configuran aquí (`testing-proposed-updates`,
 `testing-backports` y sus equivalentes con el codename) no detienen el
