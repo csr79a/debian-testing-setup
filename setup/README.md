@@ -132,17 +132,22 @@ Este script **solo trabaja con Testing**. Antes de continuar con
 - el resto de ficheros `*.sources` y `*.list` de `/etc/apt/sources.list.d`
 que apunten a Debian
 
-Se aceptan **`testing`** y **`testing-security`** siempre. Además, el
-codename del sistema (por ejemplo `forky`) y `<codename>-security` se
-aceptan **solo si `/etc/os-release` confirma que el sistema es testing**
-(`PRETTY_NAME` con `/sid`, o `/etc/debian_version` acabado en `/sid`).
-Así, cuando ese codename pase a stable, dejará de aceptarse solo. Las
-suites de testing que no se configuran (`testing-updates`,
-`testing-proposed-updates`, `testing-backports` y sus equivalentes con el
-codename) no detienen el script. Cualquier otra rama (`stable`, `sid`,
-`bookworm`, `trixie`...) **detiene el script**, también con `-y`: es una
-comprobación de seguridad, no una pregunta, y no se convierte a Testing;
-hay que corregirla o desactivarla a mano.
+La comprobación acepta `testing`, `testing-updates` y `testing-security`.
+También acepta temporalmente el codename actual de Testing (por ejemplo
+`forky`) y sus variantes de actualización/seguridad cuando `/etc/os-release`
+confirma que el sistema pertenece a la rama Testing. Esto permite trabajar
+con instalaciones que todavía tengan las fuentes expresadas con el
+codename actual. **Esta aceptación no convierte esas fuentes en suites
+permanentes:** el script de configuración no sobrescribe un
+`debian.sources` que ya existe. Para dejar una instalación siguiendo
+siempre la suite móvil `testing`, usa antes `corregir-repos-testing.sh`, que
+normaliza las fuentes a `testing`, `testing-updates` y `testing-security`.
+Las suites que no se configuran aquí (`testing-proposed-updates`,
+`testing-backports` y sus equivalentes con el codename) no detienen el
+script. Cualquier otra rama (`stable`, `sid`, `bookworm`, `trixie`...)
+**detiene el script**, también con `-y`: es una comprobación de seguridad,
+no una pregunta, y no se convierte a Testing; hay que corregirla o
+desactivarla a mano.
 
 Una entrada cuenta como "de Debian" si su URI es de `debian.org` o si usa
 `debian-archive-keyring` como clave, así que los repositorios de terceros
@@ -153,12 +158,18 @@ marcadas con `Enabled: no`. Limitación: un mirror con dominio propio y sin
 ## Repositorios
 
 Formato deb822, en `/etc/apt/sources.list.d/debian.sources` (solo se crea
-si no existe), con `testing` y `testing-security`:
+si no existe), con `testing`, `testing-updates` y `testing-security`:
 
 ```
 Types: deb
 URIs: https://deb.debian.org/debian
 Suites: testing
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: https://deb.debian.org/debian
+Suites: testing-updates
 Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 
@@ -169,9 +180,9 @@ Components: main contrib non-free non-free-firmware
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 ```
 
-No se añaden `testing-updates` ni `testing-backports`: la primera está
-pensada para actualizaciones puntuales y no aporta paquetes en testing; la
-segunda está orientada a las ramas stable.
+Se añade `testing-updates` junto a `testing` y `testing-security`, porque es
+la configuración que utiliza actualmente el script. No se añade
+`testing-backports`, que está orientada a las ramas stable.
 
 ## Sobre la seguridad en Testing
 
