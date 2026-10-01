@@ -68,8 +68,9 @@ y ejecutar ambos scripts con seguridad.
 ## Qué hace cada script
 
 - **`setup/`** — comprueba que todos los repositorios de Debian apunten
-a la rama de testing (`testing`/`testing-security`, o el codename del
-sistema si es testing; si no, se detiene, también con `-y`), escribe los
+a la rama de testing (`testing`, `testing-updates` y `testing-security`; si
+detecta el codename actual de Testing, lo normaliza a esas suites; si
+encuentra otra rama, se detiene, también con `-y`), escribe los
 repos en formato deb822, `apt full-upgrade` opcional, microcode según
 CPU, paquetes de desarrollo/multimedia/sistema/utilidades de disco/OCR
 (Tesseract), fuentes de Windows y de Ubuntu, Flathub, zram con tamaño
