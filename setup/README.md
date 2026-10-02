@@ -143,11 +143,12 @@ permanentes:** el script de configuración no sobrescribe un
 siempre la suite móvil `testing`, usa antes `repos/corregir-repos-testing.sh`, que
 normaliza las fuentes a `testing`, `testing-updates` y `testing-security`.
 Las suites que no se configuran aquí (`testing-proposed-updates`,
-`testing-backports` y sus equivalentes con el codename) no detienen el
-script. Cualquier otra rama (`stable`, `sid`, `bookworm`, `trixie`...)
-**detiene el script**, también con `-y`: es una comprobación de seguridad,
-no una pregunta, y no se convierte a Testing; hay que corregirla o
-desactivarla a mano.
+`testing-backports` y sus equivalentes con el codename), igual que
+cualquier otra rama (`stable`, `sid`, `bookworm`, `trixie`...), **detienen
+el script** (también con `-y`): la comprobación usa una lista cerrada de
+suites aceptadas, es una medida de seguridad y no una pregunta, y no
+convierte ningún repositorio a Testing; hay que corregirlo o desactivarlo
+a mano.
 
 Una entrada cuenta como "de Debian" si su URI es de `debian.org` o si usa
 `debian-archive-keyring` como clave, así que los repositorios de terceros
